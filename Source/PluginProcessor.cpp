@@ -166,7 +166,8 @@ bool FunkyFilterAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* FunkyFilterAudioProcessor::createEditor()
 {
-    return new FunkyFilterAudioProcessorEditor (*this);
+//    return new FunkyFilterAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
@@ -181,6 +182,43 @@ void FunkyFilterAudioProcessor::setStateInformation (const void* data, int sizeI
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::createParameterLayout()
+{
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+            "FilterFrequency",
+            "FilterFrequency",
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            1000.0f));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+            "FilterQuality",
+            "FilterQuality",
+            juce::NormalisableRange<float>(0.1f, 10.0f, 0.05f, 1.0f),
+            1.0f));
+    /*
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+            "MinimumFrequency",
+            "MinimumFrequency",
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            200.0f));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+            "MaximumFrequency",
+            "MaximumFrequency",
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            5000.0f));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+            "ModFrequency",
+            "ModFrequency",
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            5000.0f));
+    */
+    return layout;
 }
 
 //==============================================================================
