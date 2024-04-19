@@ -181,8 +181,7 @@ bool FunkyFilterAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* FunkyFilterAudioProcessor::createEditor()
 {
-//    return new FunkyFilterAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new FunkyFilterAudioProcessorEditor (*this);
 }
 
 //==============================================================================
@@ -191,12 +190,25 @@ void FunkyFilterAudioProcessor::getStateInformation (juce::MemoryBlock& destData
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+
+    juce::MemoryOutputStream mos(destData, true);
+    tree.state.writeToStream(mos);
+
 }
 
 void FunkyFilterAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+
+    auto valueTree = juce::ValueTree::readFromData(data, sizeInBytes);
+
+    if (valueTree.isValid())
+    {
+        tree.replaceState(valueTree);
+        updateFilter(getFilterSettings(tree));
+    }
+
 }
 
 FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)

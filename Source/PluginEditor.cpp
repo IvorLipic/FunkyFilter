@@ -15,7 +15,13 @@ FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAud
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 300);
+
+    addAndMakeVisible(filterFrequencySlider);
+    addAndMakeVisible(filterQSlider);
+    addAndMakeVisible(minimumFrequencySlider);
+    addAndMakeVisible(maximumFrequencySlider);
+
+    setSize (600, 400);
 }
 
 FunkyFilterAudioProcessorEditor::~FunkyFilterAudioProcessorEditor()
@@ -37,4 +43,16 @@ void FunkyFilterAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
+
+    auto bounds = getLocalBounds();
+    auto filterResponseArea = bounds.removeFromTop(0.5 * bounds.getHeight());
+
+    auto filterParametersArea = bounds.removeFromTop(0.5 * bounds.getHeight());
+    auto filterFrequencySliderArea = filterParametersArea.removeFromLeft(0.5 * filterParametersArea.getWidth());
+    filterFrequencySlider.setBounds(filterFrequencySliderArea);
+    filterQSlider.setBounds(filterParametersArea);
+
+    auto minimumFrequencyArea = bounds.removeFromLeft(0.5 * bounds.getWidth());
+    minimumFrequencySlider.setBounds(minimumFrequencyArea);
+    maximumFrequencySlider.setBounds(bounds);
 }
