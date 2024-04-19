@@ -65,6 +65,12 @@ public:
 
 private:
     juce::dsp::IIR::Filter<float> filterRight, filterLeft;
+
+    void updateFilter(const FilterSettings& filterSettings);
+
+    using Coefficients = juce::dsp::IIR::Filter<float>::CoefficientsPtr;
+
+    static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunkyFilterAudioProcessor)
 };

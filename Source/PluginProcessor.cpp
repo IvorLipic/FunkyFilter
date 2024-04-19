@@ -107,11 +107,7 @@ void FunkyFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
     auto filterSettings = getFilterSettings(tree);
 
-    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 
-                                                                                filterSettings.filterFrequency, 
-                                                                                filterSettings.filterQuality);
-    *filterLeft.coefficients = *filterCoefficients;
-    *filterRight.coefficients = *filterCoefficients;
+    updateFilter(filterSettings);
 }
 
 void FunkyFilterAudioProcessor::releaseResources()
@@ -163,12 +159,7 @@ void FunkyFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
 
     auto filterSettings = getFilterSettings(tree);
 
-    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(getSampleRate(),
-                                                                                filterSettings.filterFrequency,
-                                                                                filterSettings.filterQuality);
-
-    *filterLeft.coefficients = *filterCoefficients;
-    *filterRight.coefficients = *filterCoefficients;
+    updateFilter(filterSettings);
 
     juce::dsp::AudioBlock<float> block(buffer);
 
@@ -220,6 +211,20 @@ FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
     return settings;
 }
 
+void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings)
+{
+    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(getSampleRate(),
+                                                                                filterSettings.filterFrequency,
+                                                                                filterSettings.filterQuality);
+    updateCoefficients(filterLeft.coefficients, filterCoefficients);
+    updateCoefficients(filterRight.coefficients, filterCoefficients);
+}
+
+void FunkyFilterAudioProcessor::updateCoefficients(Coefficients& old, const Coefficients& replacements)
+{
+    *old = *replacements;
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -239,13 +244,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "MinimumFrequency",
             "MinimumFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
             200.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "MaximumFrequency",
             "MaximumFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
             5000.0f));
     /*
     layout.add(std::make_unique<juce::AudioParameterFloat>(
