@@ -57,6 +57,7 @@ public:
     juce::AudioProcessorValueTreeState tree {*this, nullptr, "Parameters", createParameterLayout()};
 
 private:
+    juce::dsp::IIR::Filter<float> filterRight, filterLeft;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunkyFilterAudioProcessor)
 };

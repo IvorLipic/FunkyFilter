@@ -95,6 +95,15 @@ void FunkyFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+
+    juce::dsp::ProcessSpec spec;
+
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.numChannels = 1;
+    spec.sampleRate = sampleRate;
+
+    filterLeft.prepare(spec);
+    filterRight.prepare(spec);
 }
 
 void FunkyFilterAudioProcessor::releaseResources()
@@ -144,18 +153,16 @@ void FunkyFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
+    juce::dsp::AudioBlock<float> block(buffer);
 
-        // ..do something to the data...
-    }
+    auto leftBlock = block.getSingleChannelBlock(0);
+    auto rightBlock = block.getSingleChannelBlock(1);
+
+    juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
+    juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
+
+    filterLeft.process(leftContext);
+    filterRight.process(rightContext);
 }
 
 //==============================================================================
@@ -199,7 +206,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
             "FilterQuality",
             juce::NormalisableRange<float>(0.1f, 10.0f, 0.05f, 1.0f),
             1.0f));
-    /*
+    
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "MinimumFrequency",
             "MinimumFrequency",
@@ -211,7 +218,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
             "MaximumFrequency",
             juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
             5000.0f));
-
+    /*
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "ModFrequency",
             "ModFrequency",
