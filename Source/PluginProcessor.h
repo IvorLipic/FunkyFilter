@@ -10,6 +10,13 @@
 
 #include <JuceHeader.h>
 
+struct FilterSettings
+{
+    float filterFrequency{ 0 }, filterQuality{ 1.f }, minimumFrequency{ 0 }, maximumFrequency{ 0 };
+};
+
+FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& apvts);
+
 //==============================================================================
 /**
 */

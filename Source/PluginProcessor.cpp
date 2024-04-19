@@ -104,6 +104,14 @@ void FunkyFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
     filterLeft.prepare(spec);
     filterRight.prepare(spec);
+
+    auto filterSettings = getFilterSettings(tree);
+
+    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 
+                                                                                filterSettings.filterFrequency, 
+                                                                                filterSettings.filterQuality);
+    *filterLeft.coefficients = *filterCoefficients;
+    *filterRight.coefficients = *filterCoefficients;
 }
 
 void FunkyFilterAudioProcessor::releaseResources()
@@ -153,6 +161,15 @@ void FunkyFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    auto filterSettings = getFilterSettings(tree);
+
+    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(getSampleRate(),
+                                                                                filterSettings.filterFrequency,
+                                                                                filterSettings.filterQuality);
+
+    *filterLeft.coefficients = *filterCoefficients;
+    *filterRight.coefficients = *filterCoefficients;
+
     juce::dsp::AudioBlock<float> block(buffer);
 
     auto leftBlock = block.getSingleChannelBlock(0);
@@ -191,6 +208,18 @@ void FunkyFilterAudioProcessor::setStateInformation (const void* data, int sizeI
     // whose contents will have been created by the getStateInformation() call.
 }
 
+FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
+{
+    FilterSettings settings;
+
+    settings.filterFrequency = tree.getRawParameterValue("FilterFrequency")->load();
+    settings.filterQuality = tree.getRawParameterValue("FilterQuality")->load();
+    settings.minimumFrequency = tree.getRawParameterValue("MinimumFrequency")->load();
+    settings.maximumFrequency = tree.getRawParameterValue("MaximumFrequency")->load();
+
+    return settings;
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -198,7 +227,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "FilterFrequency",
             "FilterFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
+            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
             1000.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
