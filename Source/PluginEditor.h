@@ -33,6 +33,8 @@ struct ResponseCurveComponent : juce::Component, juce::AudioProcessorParameter::
 
     void paint(juce::Graphics& g) override;
 
+    int pixelPositionForFrequency(double frequency, int width);
+
 private:
     FunkyFilterAudioProcessor& audioProcessor;
     juce::Atomic<bool> parametersChanged{ false };

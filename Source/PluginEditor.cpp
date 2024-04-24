@@ -73,7 +73,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     auto map = [outputMin, outputMax](double input)
         {
             /*
-            * Mapiranje amplitude na visinu prozora (-6 Db min, 6 Db max)
+            * Mapiranje amplitude na visinu prozora (-12 Db min, 12 Db max)
             */
             return jmap(input, -12.0, 12.0, outputMin, outputMax);
         };
@@ -95,6 +95,31 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     g.setColour(Colours::green);
     g.strokePath(responseCurve, PathStrokeType(2.f));
 
+    auto filterSettings = getFilterSettings(audioProcessor.tree);
+
+    //Iscrtavanje vertikalnih linija na min i max freq
+    g.setColour(juce::Colours::red);
+    int xMinPos = pixelPositionForFrequency(filterSettings.minimumFrequency, width);
+    int xMaxPos = pixelPositionForFrequency(filterSettings.maximumFrequency, width);
+    g.drawLine(xMinPos, 0, xMinPos, getHeight(), 2.0f);
+    g.drawLine(xMaxPos, 0, xMaxPos, getHeight(), 2.0f);
+
+}
+int ResponseCurveComponent::pixelPositionForFrequency(double frequency, int width)
+{
+    // Calculate the logarithmic range
+    double logMin = std::log10(20.0);
+    double logMax = std::log10(20000.0);
+    double logRange = logMax - logMin;
+
+    // Calculate the logarithmic value for the given frequency
+    double logFreq = std::log10(frequency);
+
+    // Map the logarithmic value to the range [0, 1]
+    double normValue = (logFreq - logMin) / logRange;
+
+    // Map the normalized value to the pixel position
+    return static_cast<int>(normValue * width);
 }
 //==============================================================================
 FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAudioProcessor& p)
@@ -108,6 +133,7 @@ FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAud
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
 
+    addAndMakeVisible(responseCurveComponent);
     addAndMakeVisible(filterFrequencySlider);
     addAndMakeVisible(filterQSlider);
     addAndMakeVisible(minimumFrequencySlider);
