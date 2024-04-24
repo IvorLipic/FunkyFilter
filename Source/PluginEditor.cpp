@@ -9,48 +9,49 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-//==============================================================================
-FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p),
-    filterFrequencySliderAttachment(audioProcessor.tree, "FilterFrequency", filterFrequencySlider),
-    filterQSliderAttachment(audioProcessor.tree, "FilterQuality", filterQSlider),
-    maximumFrequencySliderAttachment(audioProcessor.tree, "MaximumFrequency", maximumFrequencySlider),
-    minimumFrequencySliderAttachment(audioProcessor.tree, "MinimumFrequency", minimumFrequencySlider)
+ResponseCurveComponent::ResponseCurveComponent(FunkyFilterAudioProcessor& p) : audioProcessor(p)
 {
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-
-    addAndMakeVisible(filterFrequencySlider);
-    addAndMakeVisible(filterQSlider);
-    addAndMakeVisible(minimumFrequencySlider);
-    addAndMakeVisible(maximumFrequencySlider);
-
     const auto& params = audioProcessor.getParameters();
     for (auto param : params) param->addListener(this);//Adding listeners to all parameters
 
     startTimerHz(60);
-
-    setSize (600, 400);
 }
 
-FunkyFilterAudioProcessorEditor::~FunkyFilterAudioProcessorEditor()
+ResponseCurveComponent::~ResponseCurveComponent()
 {
     const auto& params = audioProcessor.getParameters();
     for (auto param : params) param->removeListener(this);
 }
 
-//==============================================================================
-void FunkyFilterAudioProcessorEditor::paint (juce::Graphics& g)
+void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float newValue)
+{
+    parametersChanged.set(true);
+}
+
+void ResponseCurveComponent::timerCallback()
+{
+    if (parametersChanged.compareAndSetBool(false, true))
+    {
+        //Update coefficients
+        auto filterSettings = getFilterSettings(audioProcessor.tree);
+        auto filterCoefficients = makeBandPassFilter(filterSettings, audioProcessor.getSampleRate());
+        updateCoefficients(filterLeft.coefficients, filterCoefficients);
+        updateCoefficients(filterRight.coefficients, filterCoefficients);
+
+        repaint();
+    }
+}
+
+void ResponseCurveComponent::paint(juce::Graphics& g)
 {
     using namespace juce;
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (Colours::black);
 
-    auto bounds = getLocalBounds();
-    auto filterResponseArea = bounds.removeFromTop(0.5 * bounds.getHeight());
+    g.fillAll(Colours::black);
+
+    auto filterResponseArea = getLocalBounds();
 
     auto width = filterResponseArea.getWidth();
-    
+
     auto sampleRate = audioProcessor.getSampleRate();
 
     std::vector<double> magnitudes;
@@ -93,7 +94,36 @@ void FunkyFilterAudioProcessorEditor::paint (juce::Graphics& g)
     //Iscrtavanje amplitudnog odziva (krivulje)
     g.setColour(Colours::green);
     g.strokePath(responseCurve, PathStrokeType(2.f));
-    
+
+}
+//==============================================================================
+FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAudioProcessor& p)
+    : AudioProcessorEditor (&p), audioProcessor (p),
+    responseCurveComponent(audioProcessor),
+    filterFrequencySliderAttachment(audioProcessor.tree, "FilterFrequency", filterFrequencySlider),
+    filterQSliderAttachment(audioProcessor.tree, "FilterQuality", filterQSlider),
+    maximumFrequencySliderAttachment(audioProcessor.tree, "MaximumFrequency", maximumFrequencySlider),
+    minimumFrequencySliderAttachment(audioProcessor.tree, "MinimumFrequency", minimumFrequencySlider)
+{
+    // Make sure that before the constructor has finished, you've set the
+    // editor's size to whatever you need it to be.
+
+    addAndMakeVisible(filterFrequencySlider);
+    addAndMakeVisible(filterQSlider);
+    addAndMakeVisible(minimumFrequencySlider);
+    addAndMakeVisible(maximumFrequencySlider);
+
+    setSize (600, 400);
+}
+
+FunkyFilterAudioProcessorEditor::~FunkyFilterAudioProcessorEditor()
+{
+}
+
+//==============================================================================
+void FunkyFilterAudioProcessorEditor::paint (juce::Graphics& g)
+{
+    g.fillAll(juce::Colours::black);
 }
 
 void FunkyFilterAudioProcessorEditor::resized()
@@ -104,6 +134,8 @@ void FunkyFilterAudioProcessorEditor::resized()
     auto bounds = getLocalBounds();
     auto filterResponseArea = bounds.removeFromTop(0.5 * bounds.getHeight());
 
+    responseCurveComponent.setBounds(filterResponseArea);
+
     auto filterParametersArea = bounds.removeFromTop(0.5 * bounds.getHeight());
     auto filterFrequencySliderArea = filterParametersArea.removeFromLeft(0.5 * filterParametersArea.getWidth());
     filterFrequencySlider.setBounds(filterFrequencySliderArea);
@@ -112,23 +144,4 @@ void FunkyFilterAudioProcessorEditor::resized()
     auto minimumFrequencyArea = bounds.removeFromLeft(0.5 * bounds.getWidth());
     minimumFrequencySlider.setBounds(minimumFrequencyArea);
     maximumFrequencySlider.setBounds(bounds);
-}
-
-void FunkyFilterAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue)
-{
-    parametersChanged.set(true);
-}
-
-void FunkyFilterAudioProcessorEditor::timerCallback()
-{
-    if (parametersChanged.compareAndSetBool(false, true))
-    {
-        //Update coefficients
-        auto filterSettings = getFilterSettings(audioProcessor.tree);
-        auto filterCoefficients = makeBandPassFilter(filterSettings, audioProcessor.getSampleRate());
-        updateCoefficients(filterLeft.coefficients, filterCoefficients);
-        updateCoefficients(filterRight.coefficients, filterCoefficients);
-
-        repaint();
-    }
 }
