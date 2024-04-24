@@ -258,7 +258,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "FilterQuality",
             "FilterQuality",
-            juce::NormalisableRange<float>(0.1f, 10.0f, 0.05f, 1.0f),
+            juce::NormalisableRange<float>(0.1f, 10.0f, 0.05f, 0.4f),
             1.0f));
     
     layout.add(std::make_unique<juce::AudioParameterFloat>(
