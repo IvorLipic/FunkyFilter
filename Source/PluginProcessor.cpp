@@ -223,16 +223,24 @@ FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
     return settings;
 }
 
+Coefficients makeBandPassFilter(const FilterSettings& filterSettings, double sampleRate)
+{
+    return juce::dsp::IIR::Coefficients<float>::makeBandPass(
+        sampleRate,
+        filterSettings.filterFrequency,
+        filterSettings.filterQuality
+    );
+}
+
 void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings)
 {
-    auto filterCoefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(getSampleRate(),
-                                                                                filterSettings.filterFrequency,
-                                                                                filterSettings.filterQuality);
+    auto filterCoefficients = makeBandPassFilter(filterSettings, getSampleRate());
+
     updateCoefficients(filterLeft.coefficients, filterCoefficients);
     updateCoefficients(filterRight.coefficients, filterCoefficients);
 }
 
-void FunkyFilterAudioProcessor::updateCoefficients(Coefficients& old, const Coefficients& replacements)
+void updateCoefficients(Coefficients& old, const Coefficients& replacements)
 {
     *old = *replacements;
 }
