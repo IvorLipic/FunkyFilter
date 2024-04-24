@@ -25,11 +25,18 @@ FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor (FunkyFilterAud
     addAndMakeVisible(minimumFrequencySlider);
     addAndMakeVisible(maximumFrequencySlider);
 
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params) param->addListener(this);//Adding listeners to all parameters
+
+    startTimerHz(60);
+
     setSize (600, 400);
 }
 
 FunkyFilterAudioProcessorEditor::~FunkyFilterAudioProcessorEditor()
 {
+    const auto& params = audioProcessor.getParameters();
+    for (auto param : params) param->removeListener(this);
 }
 
 //==============================================================================
@@ -67,7 +74,7 @@ void FunkyFilterAudioProcessorEditor::paint (juce::Graphics& g)
             /*
             * Mapiranje amplitude na visinu prozora (-6 Db min, 6 Db max)
             */
-            return jmap(input, -6.0, 6.0, outputMin, outputMax);
+            return jmap(input, -12.0, 12.0, outputMin, outputMax);
         };
 
     responseCurve.startNewSubPath(filterResponseArea.getX(), map(magnitudes.front()));
@@ -116,6 +123,12 @@ void FunkyFilterAudioProcessorEditor::timerCallback()
 {
     if (parametersChanged.compareAndSetBool(false, true))
     {
+        //Update coefficients
+        auto filterSettings = getFilterSettings(audioProcessor.tree);
+        auto filterCoefficients = makeBandPassFilter(filterSettings, audioProcessor.getSampleRate());
+        updateCoefficients(filterLeft.coefficients, filterCoefficients);
+        updateCoefficients(filterRight.coefficients, filterCoefficients);
 
+        repaint();
     }
 }
