@@ -96,6 +96,8 @@ void FunkyFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
 
+    initiateWavetable();
+
     juce::dsp::ProcessSpec spec;
 
     spec.maximumBlockSize = samplesPerBlock;
@@ -215,7 +217,6 @@ FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
 {
     FilterSettings settings;
 
-    settings.filterFrequency = tree.getRawParameterValue("FilterFrequency")->load();
     settings.filterQuality = tree.getRawParameterValue("FilterQuality")->load();
     settings.minimumFrequency = tree.getRawParameterValue("MinimumFrequency")->load();
     settings.maximumFrequency = tree.getRawParameterValue("MaximumFrequency")->load();
@@ -223,18 +224,26 @@ FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
     return settings;
 }
 
-Coefficients makeBandPassFilter(const FilterSettings& filterSettings, double sampleRate)
+Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, double sampleRate)
 {
     return juce::dsp::IIR::Coefficients<float>::makeBandPass(
         sampleRate,
-        filterSettings.filterFrequency,
-        filterSettings.filterQuality
+        filterFrequency,
+        filterQuality
     );
 }
 
 void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings)
 {
-    auto filterCoefficients = makeBandPassFilter(filterSettings, getSampleRate());
+    // Calculate the filter frequency based on the wavetable oscillation frequency
+    increment = tree.getRawParameterValue("FilterFrequency")->load() * wavetableSize / getSampleRate();
+
+    // Calculate the filter frequency based on the wavetable oscillation frequency
+    currentFilterFrequency = juce::mapToLog10(wavetable[(int)phase], filterSettings.minimumFrequency, filterSettings.maximumFrequency);
+    phase = fmod(phase + increment, wavetableSize);
+
+    // Prepare the filter coefficients
+    auto filterCoefficients = makeBandPassFilter(currentFilterFrequency, filterSettings.filterQuality, getSampleRate());
 
     updateCoefficients(filterLeft.coefficients, filterCoefficients);
     updateCoefficients(filterRight.coefficients, filterCoefficients);
@@ -280,6 +289,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
             5000.0f));
     */
     return layout;
+}
+
+void FunkyFilterAudioProcessor::initiateWavetable()
+{
+    for (int i = 0; i < wavetableSize; i++) wavetable.insert(i, (sin(2.0 * juce::double_Pi * i / wavetableSize) + 1) / 2);
+}
+
+double FunkyFilterAudioProcessor::getCurrentFilterFrequency() const
+{
+    return currentFilterFrequency;
 }
 
 //==============================================================================

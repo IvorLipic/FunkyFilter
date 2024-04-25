@@ -12,7 +12,7 @@
 
 struct FilterSettings
 {
-    float filterFrequency{ 0 }, filterQuality{ 1.f }, minimumFrequency{ 0 }, maximumFrequency{ 0 };
+    float filterQuality{ 1.f }, minimumFrequency{ 0 }, maximumFrequency{ 0 };
 };
 
 FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& apvts);
@@ -22,7 +22,7 @@ using Coefficients = juce::dsp::IIR::Filter<float>::CoefficientsPtr;
 
 void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 
-Coefficients makeBandPassFilter(const FilterSettings& filterSettings, double sampleRate);
+Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, double sampleRate);
 //==============================================================================
 /**
 */
@@ -67,12 +67,23 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
     juce::AudioProcessorValueTreeState tree {*this, nullptr, "Parameters", createParameterLayout()};
+
+    void initiateWavetable();
+
+    double getCurrentFilterFrequency() const;
 
 private:
     juce::dsp::IIR::Filter<float> filterRight, filterLeft;
 
     void updateFilter(const FilterSettings& filterSettings);
+
+    juce::Array<float> wavetable;
+    double wavetableSize = 1024;
+    double phase = 0;
+    double increment;
+    double currentFilterFrequency = 1000.0;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunkyFilterAudioProcessor)
 };

@@ -30,16 +30,14 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
 
 void ResponseCurveComponent::timerCallback()
 {
-    if (parametersChanged.compareAndSetBool(false, true))
-    {
-        //Update coefficients
-        auto filterSettings = getFilterSettings(audioProcessor.tree);
-        auto filterCoefficients = makeBandPassFilter(filterSettings, audioProcessor.getSampleRate());
-        updateCoefficients(filterLeft.coefficients, filterCoefficients);
-        updateCoefficients(filterRight.coefficients, filterCoefficients);
-
-        repaint();
-    }
+    
+    //Update coefficients
+    auto filterSettings = getFilterSettings(audioProcessor.tree);
+    auto filterCoefficients = makeBandPassFilter(audioProcessor.getCurrentFilterFrequency(), filterSettings.filterQuality, audioProcessor.getSampleRate());
+    updateCoefficients(filterLeft.coefficients, filterCoefficients);
+    updateCoefficients(filterRight.coefficients, filterCoefficients);
+    
+    repaint();
 }
 
 void ResponseCurveComponent::paint(juce::Graphics& g)
