@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -93,29 +85,34 @@ void FunkyFilterAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void FunkyFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
-
+    // Initialize the wavetable used for modulation
     initiateWavetable();
 
+    // Create a ProcessSpec object to specify processing requirements
     juce::dsp::ProcessSpec spec;
 
+    // Set the maximum block size, number of channels, and sample rate for processing (each channel is processed seperately)
     spec.maximumBlockSize = samplesPerBlock;
     spec.numChannels = 1;
     spec.sampleRate = sampleRate;
 
+    // Prepare the left and right filters with the specified processing requirements
     filterLeft.prepare(spec);
     filterRight.prepare(spec);
 
+    // Retrieve parameters from the parameter tree
     auto filterSettings = getFilterSettings(tree);
 
-    updateFilter(filterSettings);
+    // Update the filter with the current settings, sample rate, and block size
+    updateFilter(filterSettings, sampleRate, samplesPerBlock);
+
+    // Reset the phase for modulation
+    phase = 0.f;
 }
 
 void FunkyFilterAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    phase = 0.f;
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -146,33 +143,47 @@ bool FunkyFilterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 
 void FunkyFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    //JUCE generated
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    auto filterSettings = getFilterSettings(tree);
+    // Check if there is a play head to get the current position info
+    if (auto* playHead = getPlayHead())
+    {
+        juce::AudioPlayHead::CurrentPositionInfo info;
 
-    updateFilter(filterSettings);
+        // Get the current position info from the play head
+        if (playHead->getCurrentPosition(info))
+        {
+            if (info.isPlaying)
+            {
+                // Update filter only when the transport is playing
+                auto filterSettings = getFilterSettings(tree);
+                updateFilter(filterSettings, getSampleRate(), buffer.getNumSamples());
 
-    juce::dsp::AudioBlock<float> block(buffer);
+                // Create an AudioBlock from the buffer for DSP processing
+                juce::dsp::AudioBlock<float> block(buffer);
+                auto leftBlock = block.getSingleChannelBlock(0);
+                auto rightBlock = block.getSingleChannelBlock(1);
 
-    auto leftBlock = block.getSingleChannelBlock(0);
-    auto rightBlock = block.getSingleChannelBlock(1);
+                // Create process contexts for left and right channels
+                juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
+                juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
 
-    juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
-    juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
-
-    filterLeft.process(leftContext);
-    filterRight.process(rightContext);
+                // Process the left and right channels through the filter
+                filterLeft.process(leftContext);
+                filterRight.process(rightContext);
+            }
+            else
+            {
+                // Reset phase when playback stops
+                phase = 0.f;
+            }
+        }
+    }
 }
 
 //==============================================================================
@@ -208,15 +219,22 @@ void FunkyFilterAudioProcessor::setStateInformation (const void* data, int sizeI
     if (valueTree.isValid())
     {
         tree.replaceState(valueTree);
-        updateFilter(getFilterSettings(tree));
+        updateFilter(getFilterSettings(tree), getSampleRate(), getBlockSize());
     }
 
 }
 
+
+// Retrieves values of parameters from the parameter tree and returns them as a FilterSettings structure.
+// This function creates a wrapper around parameters for cleaner and more organized code.
 FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
 {
     FilterSettings settings;
 
+    settings.lfoFreq = tree.getRawParameterValue("FilterFrequency")->load();
+    settings.noteDurationIndex = tree.getRawParameterValue("NoteDuration")->load();
+    settings.bpm = tree.getRawParameterValue("BPM")->load();
+    settings.useNoteDuration = tree.getRawParameterValue("UseNoteDuration")->load() > 0.5f;
     settings.filterQuality = tree.getRawParameterValue("FilterQuality")->load();
     settings.minimumFrequency = tree.getRawParameterValue("MinimumFrequency")->load();
     settings.maximumFrequency = tree.getRawParameterValue("MaximumFrequency")->load();
@@ -224,6 +242,7 @@ FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
     return settings;
 }
 
+//Creates coefficients for a band-pass filter using the specified filter frequency, filter quality (Q factor), and sample rate
 Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, double sampleRate)
 {
     return juce::dsp::IIR::Coefficients<float>::makeBandPass(
@@ -233,27 +252,50 @@ Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, dou
     );
 }
 
-void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings)
-{
-    // Calculate the filter frequency based on the wavetable oscillation frequency
-    increment = tree.getRawParameterValue("FilterFrequency")->load() * wavetableSize / getSampleRate();
-
-    // Calculate the filter frequency based on the wavetable oscillation frequency
-    currentFilterFrequency = juce::mapToLog10(wavetable[(int)phase], filterSettings.minimumFrequency, filterSettings.maximumFrequency);
-    phase = fmod(phase + increment, wavetableSize);
-
-    // Prepare the filter coefficients
-    auto filterCoefficients = makeBandPassFilter(currentFilterFrequency, filterSettings.filterQuality, getSampleRate());
-
-    updateCoefficients(filterLeft.coefficients, filterCoefficients);
-    updateCoefficients(filterRight.coefficients, filterCoefficients);
-}
-
+//Updates the existing filter coefficients with new coefficients
 void updateCoefficients(Coefficients& old, const Coefficients& replacements)
 {
     *old = *replacements;
 }
 
+void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings, double sampleRate, int blockSize)
+{
+    // Check if the filter frequency modulation should use note duration based on the parameter value
+    if (filterSettings.useNoteDuration)
+    {
+        // Define an array of note durations (whole note, half note, etc.)
+        float noteDurations[] = { 4.0f, 2.f, 1.f, 0.5f, 0.25f };
+
+        // Get the current note duration from the array based on the parameter value
+        float noteDuration = noteDurations[filterSettings.noteDurationIndex];
+
+        // Calculate the modulation frequency based on BPM and note duration (LFO frequency)
+        float modFrequency = filterSettings.bpm / (60 * noteDuration);
+
+        // Calculate the phase increment for the LFO based on modulation frequency, sample rate, and block size
+        increment = modFrequency * wavetableSize / (sampleRate / (float)blockSize);
+    }
+    else
+    {
+        // Calculate the phase increment for the LFO using a fixed frequency from the parameter tree
+        increment = filterSettings.lfoFreq * wavetableSize / (sampleRate / (float)blockSize);
+    }
+
+    // Map the current phase value in the wavetable t   o a logarithmic frequency range
+    currentFilterFrequency = juce::mapToLog10(wavetable[(int)phase], filterSettings.minimumFrequency, filterSettings.maximumFrequency);
+
+    // Increment the phase and wrap it around using fmod to stay within the wavetable size
+    phase = fmod(phase + increment, wavetableSize);
+
+    // Generate new band-pass filter coefficients based on (fixed or calculated) frequency and quality factor
+    auto filterCoefficients = makeBandPassFilter(currentFilterFrequency, filterSettings.filterQuality, sampleRate);
+
+    // Update the left and right filter coefficients with the new ones
+    updateCoefficients(filterLeft.coefficients, filterCoefficients);
+    updateCoefficients(filterRight.coefficients, filterCoefficients);
+}
+
+//Parameters are created here
 juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -261,8 +303,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "FilterFrequency",
             "FilterFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
-            1000.0f));
+            juce::NormalisableRange<float>(0.1f, 20.0f, 0.1f, 0.5f),
+            1.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "FilterQuality",
@@ -273,29 +315,42 @@ juce::AudioProcessorValueTreeState::ParameterLayout FunkyFilterAudioProcessor::c
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "MinimumFrequency",
             "MinimumFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
+            juce::NormalisableRange<float>(30.0f, 16000.0f, 1.0f, 0.25f),
             200.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
             "MaximumFrequency",
             "MaximumFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.25f),
+            juce::NormalisableRange<float>(30.0f, 16000.0f, 1.0f, 0.25f),
             5000.0f));
-    /*
+            
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+            "UseNoteDuration",
+            "UseNoteDuration",
+            false));
+
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-            "ModFrequency",
-            "ModFrequency",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 1.0f),
-            5000.0f));
-    */
+            "BPM",
+            "BPM",
+            juce::NormalisableRange<float>(20.0f, 300.0f, 1.0f, 1.0f),
+            120.0f));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+            "NoteDuration",
+            "NoteDuration",
+            juce::StringArray{ "1 Note", "1/2 Note", "1/4 Note", "1/8 Note", "1/16 Note" },
+            2));
     return layout;
 }
 
+//One cycle of a cosine wave
 void FunkyFilterAudioProcessor::initiateWavetable()
 {
-    for (int i = 0; i < wavetableSize; i++) wavetable.insert(i, (sin(2.0 * juce::double_Pi * i / wavetableSize) + 1) / 2);
+    for (int i = 0; i < wavetableSize; i++) wavetable.insert(i, (cos(2.0 * juce::double_Pi * i / wavetableSize) + 1) / 2);
 }
 
+
+//Helper funnction to get the mod frequency to PluginEditor
 double FunkyFilterAudioProcessor::getCurrentFilterFrequency() const
 {
     return currentFilterFrequency;

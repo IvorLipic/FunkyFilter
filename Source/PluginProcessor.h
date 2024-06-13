@@ -10,9 +10,12 @@
 
 #include <JuceHeader.h>
 
+//Data structure for parameters
 struct FilterSettings
 {
-    float filterQuality{ 1.f }, minimumFrequency{ 0 }, maximumFrequency{ 0 };
+    float filterQuality{ 1.f }, minimumFrequency{ 0 }, maximumFrequency{ 0 }, bpm{ 120 }, lfoFreq{ 1 };
+    bool useNoteDuration{ false };
+    int noteDurationIndex{ 0 };
 };
 
 FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& apvts);
@@ -77,7 +80,7 @@ public:
 private:
     juce::dsp::IIR::Filter<float> filterRight, filterLeft;
 
-    void updateFilter(const FilterSettings& filterSettings);
+    void updateFilter(const FilterSettings& filterSettings, double sampleRate, int blockSize);
 
     juce::Array<float> wavetable;
     double wavetableSize = 1024;
