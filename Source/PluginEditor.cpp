@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -17,14 +9,13 @@ ResponseCurveComponent::ResponseCurveComponent(FunkyFilterAudioProcessor& p) : a
 ResponseCurveComponent::~ResponseCurveComponent()
 {
 }
+
 void ResponseCurveComponent::timerCallback()
 {
     //Update coefficients
     auto filterSettings = getFilterSettings(audioProcessor.tree);
     auto filterCoefficients = makeBandPassFilter(audioProcessor.getCurrentFilterFrequency(), filterSettings.filterQuality, audioProcessor.getSampleRate());
-    updateCoefficients(filterLeft.coefficients, filterCoefficients);
-    updateCoefficients(filterRight.coefficients, filterCoefficients);
-
+    updateCoefficients(filter.coefficients, filterCoefficients);
     repaint();
 }
 
@@ -54,7 +45,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         auto freq = mapToLog10(double(i) / double(width), 20.0, 20000.0);
 
         // Get the filter's magnitude response for the frequency
-        double magnitude = filterLeft.coefficients->getMagnitudeForFrequency(freq, sampleRate);
+        double magnitude = filter.coefficients->getMagnitudeForFrequency(freq, sampleRate);
 
         // Convert the magnitude to decibels and store in the vector
         magnitudes[i] = Decibels::gainToDecibels(magnitude);
@@ -82,7 +73,6 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     {
         responseCurve.lineTo(filterResponseArea.getX() + i, map(magnitudes[i]));
     }
-
 
     // Draw the border of the response area
     g.setColour(Colours::white);
@@ -156,8 +146,8 @@ FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor(FunkyFilterAudi
     maximumFrequencySliderAttachment(audioProcessor.tree, "MaximumFrequency", maximumFrequencySlider),
     minimumFrequencySliderAttachment(audioProcessor.tree, "MinimumFrequency", minimumFrequencySlider),
     bpmSliderAttachment(audioProcessor.tree, "BPM", bpmSlider),
-    useNoteDurationButtonAttachment(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.tree, "UseNoteDuration", useNoteDurationButton)),
-    noteDurationComboBoxAttachment(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.tree, "NoteDuration", noteDurationComboBox))
+    useNoteDurationButtonAttachment(audioProcessor.tree, "UseNoteDuration", useNoteDurationButton),
+    noteDurationComboBoxAttachment(audioProcessor.tree, "NoteDuration", noteDurationComboBox)
 {
     // Add components to the editor
     addAndMakeVisible(responseCurveComponent);
@@ -237,7 +227,6 @@ FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor(FunkyFilterAudi
         bpmLabel.setVisible(useNoteDuration);
         noteDurationComboBox.setVisible(useNoteDuration);
         };
-
     useNoteDurationButton.onClick();
 
     // Set the size of the window
