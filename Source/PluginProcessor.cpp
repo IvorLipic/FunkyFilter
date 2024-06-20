@@ -224,40 +224,7 @@ void FunkyFilterAudioProcessor::setStateInformation (const void* data, int sizeI
 
 }
 
-
-// Retrieves values of parameters from the parameter tree and returns them as a FilterSettings structure.
-// This function creates a wrapper around parameters for cleaner and more organized code.
-FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& tree)
-{
-    FilterSettings settings;
-
-    settings.lfoFreq = tree.getRawParameterValue("FilterFrequency")->load();
-    settings.noteDurationIndex = tree.getRawParameterValue("NoteDuration")->load();
-    settings.bpm = tree.getRawParameterValue("BPM")->load();
-    settings.useNoteDuration = tree.getRawParameterValue("UseNoteDuration")->load() > 0.5f;
-    settings.filterQuality = tree.getRawParameterValue("FilterQuality")->load();
-    settings.minimumFrequency = tree.getRawParameterValue("MinimumFrequency")->load();
-    settings.maximumFrequency = tree.getRawParameterValue("MaximumFrequency")->load();
-
-    return settings;
-}
-
-//Creates coefficients for a band-pass filter using the specified filter frequency, filter quality (Q factor), and sample rate
-Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, double sampleRate)
-{
-    return juce::dsp::IIR::Coefficients<float>::makeBandPass(
-        sampleRate,
-        filterFrequency,
-        filterQuality
-    );
-}
-
-//Updates the existing filter coefficients with new coefficients
-void updateCoefficients(Coefficients& old, const Coefficients& replacements)
-{
-    *old = *replacements;
-}
-
+//Udpates filter coefficients
 void FunkyFilterAudioProcessor::updateFilter(const FilterSettings& filterSettings, double sampleRate, int blockSize)
 {
     // Check if the filter frequency modulation should use note duration based on the parameter value

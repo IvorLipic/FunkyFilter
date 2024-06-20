@@ -120,6 +120,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     g.drawLine(xMaxPos, 0, xMaxPos, getHeight(), 2.0f);
 
 }
+
 int ResponseCurveComponent::pixelPositionForFrequency(double frequency, int width)
 {
     // Calculate the logarithmic range
@@ -136,8 +137,8 @@ int ResponseCurveComponent::pixelPositionForFrequency(double frequency, int widt
     // Map the normalized value to the pixel position
     return static_cast<int>(normValue * width);
 }
+
 //==============================================================================
-// Constructor for FunkyFilterAudioProcessorEditor
 FunkyFilterAudioProcessorEditor::FunkyFilterAudioProcessorEditor(FunkyFilterAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p), // Initialize base class and reference to audio processor
     responseCurveComponent(audioProcessor), // Initialize response curve component with the audio processor
