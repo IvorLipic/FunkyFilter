@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <JuceHeader.h>
@@ -17,18 +9,15 @@ struct FilterSettings
     bool useNoteDuration{ false };
     int noteDurationIndex{ 0 };
 };
-
 FilterSettings getFilterSettings(juce::AudioProcessorValueTreeState& apvts);
-
 
 using Coefficients = juce::dsp::IIR::Filter<float>::CoefficientsPtr;
 
+//=============================GLOBAL METHODS===================================
 void updateCoefficients(Coefficients& old, const Coefficients& replacements);
-
 Coefficients makeBandPassFilter(double filterFrequency, float filterQuality, double sampleRate);
+
 //==============================================================================
-/**
-*/
 class FunkyFilterAudioProcessor  : public juce::AudioProcessor
 {
 public:
@@ -69,24 +58,27 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+public:
+    //==============================================================================
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-
     juce::AudioProcessorValueTreeState tree {*this, nullptr, "Parameters", createParameterLayout()};
 
+    //==============================================================================
     void initiateWavetable();
-
     double getCurrentFilterFrequency() const;
 
 private:
+    //==============================================================================
     juce::dsp::IIR::Filter<float> filterRight, filterLeft;
-
-    void updateFilter(const FilterSettings& filterSettings, double sampleRate, int blockSize);
-
     juce::Array<float> wavetable;
     double wavetableSize = 1024;
     double phase = 0;
     double increment;
     double currentFilterFrequency = 1000.0;
+
+    //==============================================================================
+    void updateFilter(const FilterSettings& filterSettings, double sampleRate, int blockSize);
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunkyFilterAudioProcessor)
 };

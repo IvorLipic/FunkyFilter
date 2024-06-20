@@ -1,11 +1,3 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <JuceHeader.h>
@@ -16,28 +8,27 @@ struct MyRotarySlider : juce::Slider
     MyRotarySlider() : juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
         juce::Slider::TextEntryBoxPosition::NoTextBox)
     {
-
     }
 };
 
 struct ResponseCurveComponent : juce::Component, juce::Timer
 {
+public:
+    //==============================================================================
     ResponseCurveComponent(FunkyFilterAudioProcessor&);
     ~ResponseCurveComponent();
 
+    //==============================================================================
     void timerCallback() override;
-
     void paint(juce::Graphics& g) override;
-
     int pixelPositionForFrequency(double frequency, int width);
 
 private:
     FunkyFilterAudioProcessor& audioProcessor;
-    juce::dsp::IIR::Filter<float> filterRight, filterLeft;
+    juce::dsp::IIR::Filter<float> filter;
 };
+
 //==============================================================================
-/**
-*/
 class FunkyFilterAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
@@ -52,25 +43,19 @@ private:
     FunkyFilterAudioProcessor& audioProcessor;
 
     MyRotarySlider filterFrequencySlider, filterQSlider, maximumFrequencySlider, minimumFrequencySlider, bpmSlider;
-
-    ResponseCurveComponent responseCurveComponent;
-
-    juce::Label filterFrequencyLabel;
-    juce::Label filterQLabel;
-    juce::Label minimumFrequencyLabel;
-    juce::Label maximumFrequencyLabel;
-    juce::Label bpmLabel;
-    juce::Label noteDurationLabel;
-
     juce::ToggleButton useNoteDurationButton;
     juce::ComboBox noteDurationComboBox;
-
+    juce::Label filterFrequencyLabel, filterQLabel, minimumFrequencyLabel, maximumFrequencyLabel, bpmLabel, noteDurationLabel;
+    ResponseCurveComponent responseCurveComponent;
+    
     using apvts = juce::AudioProcessorValueTreeState;
     using sliderAttachment = apvts::SliderAttachment;
+    using buttonAttachment = apvts::ButtonAttachment;
+    using comboBoxAttachment = apvts::ComboBoxAttachment;
 
     sliderAttachment filterFrequencySliderAttachment, filterQSliderAttachment, maximumFrequencySliderAttachment, minimumFrequencySliderAttachment, bpmSliderAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> useNoteDurationButtonAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> noteDurationComboBoxAttachment;
+    buttonAttachment useNoteDurationButtonAttachment;
+    comboBoxAttachment noteDurationComboBoxAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunkyFilterAudioProcessorEditor)
 };
